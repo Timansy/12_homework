@@ -4,6 +4,7 @@ var inquirer = require("inquirer");
 let roles = [];
 let removable_roles = [];
 let managers = [];
+let nonmanagers = [];
 let departments = [];
 
 var connection = mysql.createConnection({
@@ -16,6 +17,7 @@ var connection = mysql.createConnection({
 
 connection.connect(function (err) {
   if (err) throw err;
+  getNonManagerArray();
   getManagerArray();
   getRoleArray();
   getDepartmentArray();
@@ -23,6 +25,70 @@ connection.connect(function (err) {
   listEmployees();
 });
 
+function runSearch() {
+  inquirer
+    .prompt({
+      name: "action",
+      type: "list",
+      message: "What would you like to do?",
+      choices: ["Add", "Modify - Not Implemented", "Delete", "View"],
+    })
+    .then(function (answer) {
+      if (answer.action === "View") {
+        inquirer
+          .prompt({
+            name: "report",
+            type: "list",
+            message: "Which report would you like to view?",
+            choices: [
+              "Employees",
+              "Managers",
+              "Roles",
+              "Departments",
+              "Budget by Department",
+            ],
+          })
+          .then(function (viewAnswers) {
+            reportViewer(viewAnswers.report);
+          });
+      } else if (answer.action === "Add") {
+        inquirer
+          .prompt({
+            name: "add",
+            type: "list",
+            message: "Which table would you like to add to?",
+            choices: ["Employees", "Roles", "Departments"],
+          })
+          .then(function (viewAnswers) {
+            addEntry(viewAnswers.add);
+          });
+      } else if (answer.action === "Modify") {
+        inquirer
+          .prompt({
+            name: "modify",
+            type: "list",
+            message: "Which table would you like to modify? NOT IMPLEMENTED",
+            choices: ["Employees", "Roles", "Departments"],
+          })
+          .then(function (viewAnswers) {
+            modifyEntry(viewAnswers.modify);
+          });
+      } else if (answer.action === "Delete") {
+        inquirer
+          .prompt({
+            name: "delete",
+            type: "list",
+            message: "Which table would you like to delete?",
+            choices: ["Employees", "Roles", "Departments - NOT IMPLEMENTED"],
+          })
+          .then(function (viewAnswers) {
+            removeEntry(viewAnswers.delete);
+          });
+      }
+    });
+}
+
+//viewing
 function reportViewer(report) {
   var sqlString = "";
   console.log("reportViewer: " + report);
@@ -63,40 +129,53 @@ function reportViewer(report) {
   });
 }
 
-function addEntry(table) {
-  console.log("addEntry: " + table);
-  console.log("reportViewer: " + table);
-  switch (table) {
-    case "Employees":
-      addNewEmployee();
-      break;
-    case "Roles":
-      addNewRole();
-      break;
-    case "Departments":
-      addNewDepartment();
-      break;
-  }
-}
-
+//modifying
 function modifyEntry(table) {
   console.log("modifyEntry: " + table);
+  console.log("function not implemented: " + table);
+  listEmployees();
 }
+
+//removing
 
 function removeEntry(table) {
   switch (table) {
     case "Employees":
-      addNewEmployee();
+      removeEmployee();
       break;
     case "Roles":
       removeRole();
       break;
-    case "Departments":
-      addNewDepartment();
+    case "Departments - NOT IMPLEMENTED":
+      console.log("function not implemented: " + table);
+      listEmployees();
       break;
   }
-
   console.log("removeEntry: " + table);
+}
+
+function removeEmployee() {
+  // listRolesWithoutDependencies();
+  inquirer
+    .prompt({
+      name: "delete",
+      type: "list",
+      message: "Select the ID of Employee to remove.",
+      choices: nonmanagers,
+    })
+    .then(function (viewAnswers) {
+      connection.query(
+        `delete from employee_tbl where employee_id = ${parseInt(
+          viewAnswers.delete.split("|")[0]
+        )}`,
+        (err, data) => {
+          if (err) throw err;
+          console.log(`${viewAnswers.delete} was deleted.`);
+          listEmployees();
+          getNonManagerArray();
+        }
+      );
+    });
 }
 
 function removeRole() {
@@ -110,17 +189,20 @@ function removeRole() {
     })
     .then(function (viewAnswers) {
       connection.query(
-        `delete from role_tbl where role_id = ${parseInt(viewAnswers.delete.split("|")[0])}`,
+        `delete from role_tbl where role_id = ${parseInt(
+          viewAnswers.delete.split("|")[0]
+        )}`,
         (err, data) => {
           if (err) throw err;
           console.log(`${viewAnswers.delete} was deleted.`);
           listRolesWithoutDependencies();
-          
           getRemoveableRoleArray();
         }
       );
     });
 }
+
+//listing
 
 function listRolesWithoutDependencies() {
   connection.query(
@@ -179,79 +261,21 @@ function listRoles() {
   });
 }
 
-function pushEmployee(first, last, role, manager) {
-  console.log("Adding Employee");
-  connection.query(
-    `insert into employee_tbl ( first_name, last_name, role_id, manager_id)
-        values
-        (\"${first}\", \"${last}\", ${role}, ${manager})`,
-    (err, data) => {
-      if (err) throw err;
-    }
-  );
-}
-
-function runSearch() {
-  inquirer
-    .prompt({
-      name: "action",
-      type: "list",
-      message: "What would you like to do?",
-      choices: ["Add", "Modify", "Delete", "View"],
-    })
-    .then(function (answer) {
-      if (answer.action === "View") {
-        inquirer
-          .prompt({
-            name: "report",
-            type: "list",
-            message: "Which report would you like to view?",
-            choices: [
-              "Employees",
-              "Managers",
-              "Roles",
-              "Departments",
-              "Budget by Department",
-            ],
-          })
-          .then(function (viewAnswers) {
-            reportViewer(viewAnswers.report);
-          });
-      } else if (answer.action === "Add") {
-        inquirer
-          .prompt({
-            name: "add",
-            type: "list",
-            message: "Which table would you like to add to?",
-            choices: ["Employees", "Roles", "Departments"],
-          })
-          .then(function (viewAnswers) {
-            addEntry(viewAnswers.add);
-          });
-      } else if (answer.action === "Modify") {
-        inquirer
-          .prompt({
-            name: "modify",
-            type: "list",
-            message: "Which table would you like to add to?",
-            choices: ["Employees", "Roles", "Departments"],
-          })
-          .then(function (viewAnswers) {
-            modifyEntry(viewAnswers.modify);
-          });
-      } else if (answer.action === "Delete") {
-        inquirer
-          .prompt({
-            name: "delete",
-            type: "list",
-            message: "Which table would you like to add to?",
-            choices: ["Employees", "Roles", "Departments"],
-          })
-          .then(function (viewAnswers) {
-            removeEntry(viewAnswers.delete);
-          });
-      }
-    });
+//Additions
+function addEntry(table) {
+  console.log("addEntry: " + table);
+  console.log("reportViewer: " + table);
+  switch (table) {
+    case "Employees":
+      addNewEmployee();
+      break;
+    case "Roles":
+      addNewRole();
+      break;
+    case "Departments":
+      addNewDepartment();
+      break;
+  }
 }
 
 function addNewEmployee() {
@@ -290,6 +314,18 @@ function addNewEmployee() {
       getManagerArray();
       listEmployees();
     });
+}
+
+function pushEmployee(first, last, role, manager) {
+  console.log("Adding Employee");
+  connection.query(
+    `insert into employee_tbl ( first_name, last_name, role_id, manager_id)
+        values
+        (\"${first}\", \"${last}\", ${role}, ${manager})`,
+    (err, data) => {
+      if (err) throw err;
+    }
+  );
 }
 
 function addNewDepartment() {
@@ -351,10 +387,15 @@ function addNewRole() {
     });
 }
 
+//Array Loading
 function getManagerArray() {
   managers = [];
   connection.query(
-    `select concat(employee_id,' | ', first_name,' ', last_name) as managers from employee_tbl order by first_name;`,
+    `select concat(c.ID,' | ',c.Name) as managers from  
+    (select a.employee_id as ID, concat(a.first_name, " ", a.last_name) as Name, count(b.employee_id) as Emp_ID_Count 
+    from employee_tbl as a
+    left join employee_tbl as b on a.employee_id = b.manager_id
+    group by ID) as c where c.Emp_ID_Count > 0;`,
     (err, data) => {
       if (err) throw err;
       for (var i = 0; i < data.length; i++) {
@@ -364,6 +405,24 @@ function getManagerArray() {
     }
   );
 }
+
+function getNonManagerArray() {
+  nonmanagers = [];
+  connection.query(
+    `select concat(c.ID,' | ',c.Name) as nonmanagers from  
+    (select a.employee_id as ID, concat(a.first_name, " ", a.last_name) as Name, count(b.employee_id) as Emp_ID_Count 
+    from employee_tbl as a
+    left join employee_tbl as b on a.employee_id = b.manager_id
+    group by ID) as c where c.Emp_ID_Count = 0;`,
+    (err, data) => {
+      if (err) throw err;
+      for (var i = 0; i < data.length; i++) {
+        nonmanagers.push(data[i].nonmanagers);
+      }
+    }
+  );
+}
+
 
 function getRoleArray() {
   roles = [];
