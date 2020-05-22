@@ -2,6 +2,7 @@ var mysql = require("mysql");
 var inquirer = require("inquirer");
 
 let roles = [];
+let removable_roles = [];
 let managers = [];
 let departments = [];
 
@@ -18,6 +19,7 @@ connection.connect(function (err) {
   getManagerArray();
   getRoleArray();
   getDepartmentArray();
+  getRemoveableRoleArray();
   listEmployees();
 });
 
@@ -82,7 +84,57 @@ function modifyEntry(table) {
 }
 
 function removeEntry(table) {
+  switch (table) {
+    case "Employees":
+      addNewEmployee();
+      break;
+    case "Roles":
+      removeRole();
+      break;
+    case "Departments":
+      addNewDepartment();
+      break;
+  }
+
   console.log("removeEntry: " + table);
+}
+
+function removeRole() {
+  // listRolesWithoutDependencies();
+  inquirer
+    .prompt({
+      name: "delete",
+      type: "list",
+      message: "Roles without dependencies: Please select one",
+      choices: removable_roles,
+    })
+    .then(function (viewAnswers) {
+      connection.query(
+        `delete from role_tbl where role_id = ${parseInt(viewAnswers.delete.split("|")[0])}`,
+        (err, data) => {
+          if (err) throw err;
+          console.log(`${viewAnswers.delete} was deleted.`);
+          listRolesWithoutDependencies();
+          
+          getRemoveableRoleArray();
+        }
+      );
+    });
+}
+
+function listRolesWithoutDependencies() {
+  connection.query(
+    `select c.ID, c.Title from
+    (select a.role_id as ID, a.role_title as Title, count(b.employee_id) as Emp_ID_Count 
+    from role_tbl as a
+    left join employee_tbl as b on a.role_id = b.role_id
+    group by ID) as c where c.Emp_ID_Count = 0;`,
+    (err, data) => {
+      if (err) throw err;
+      console.table(data);
+      runSearch();
+    }
+  );
 }
 
 function listEmployees() {
@@ -108,7 +160,7 @@ function listEmployees() {
   );
 }
 
-function listDepartments(){
+function listDepartments() {
   connection.query(
     `select * from department_tbl order by department_id`,
     (err, data) => {
@@ -119,15 +171,12 @@ function listDepartments(){
   );
 }
 
-function listRoles(){
-  connection.query(
-    `select * from role_tbl order by role_id`,
-    (err, data) => {
-      if (err) throw err;
-      console.table(data);
-      runSearch();
-    }
-  );
+function listRoles() {
+  connection.query(`select * from role_tbl order by role_id`, (err, data) => {
+    if (err) throw err;
+    console.table(data);
+    runSearch();
+  });
 }
 
 function pushEmployee(first, last, role, manager) {
@@ -250,7 +299,7 @@ function addNewDepartment() {
         type: "input",
         name: "department",
         message: "New Department Name?",
-      }
+      },
     ])
     .then(function (answer) {
       connection.query(
@@ -290,7 +339,9 @@ function addNewRole() {
       connection.query(
         `insert into role_tbl (role_title, salary, department_id)
             values
-            (\"${answer.role}\", \"${parseFloat(answer.salary)}\", \"${parseInt(answer.department.split("|")[0])}\")`,
+            (\"${answer.role}\", \"${parseFloat(answer.salary)}\", \"${parseInt(
+          answer.department.split("|")[0]
+        )}\")`,
         (err, data) => {
           if (err) throw err;
         }
@@ -328,6 +379,24 @@ function getRoleArray() {
   );
 }
 
+function getRemoveableRoleArray() {
+  removable_roles = [];
+  connection.query(
+    `select concat(c.ID,' | ',c.Title) as roles from  
+    (select a.role_id as ID, a.role_title as Title, count(b.employee_id) as Emp_ID_Count 
+    from role_tbl as a
+    left join employee_tbl as b on a.role_id = b.role_id
+    group by ID) as c where c.Emp_ID_Count = 0;`,
+    (err, data) => {
+      if (err) throw err;
+      for (var i = 0; i < data.length; i++) {
+        removable_roles.push(data[i].roles);
+        // console.log(data[i].roles);
+      }
+    }
+  );
+}
+
 function getDepartmentArray() {
   departments = [];
   connection.query(
@@ -340,133 +409,4 @@ function getDepartmentArray() {
       }
     }
   );
-}
-
-function multiSearch() {
-  var query = "SELECT artist FROM top5000 GROUP BY artist HAVING count(*) > 1";
-  connection.query(query, function (err, res) {
-    for (var i = 0; i < res.length; i++) {
-      console.log(res[i].artist);
-    }
-    runSearch();
-  });
-}
-
-function rangeSearch() {
-  inquirer
-    .prompt([
-      {
-        name: "start",
-        type: "input",
-        message: "Enter starting position: ",
-        validate: function (value) {
-          if (isNaN(value) === false) {
-            return true;
-          }
-          return false;
-        },
-      },
-      {
-        name: "end",
-        type: "input",
-        message: "Enter ending position: ",
-        validate: function (value) {
-          if (isNaN(value) === false) {
-            return true;
-          }
-          return false;
-        },
-      },
-    ])
-    .then(function (answer) {
-      var query =
-        "SELECT position,song,artist,year FROM top5000 WHERE position BETWEEN ? AND ?";
-      connection.query(query, [answer.start, answer.end], function (err, res) {
-        for (var i = 0; i < res.length; i++) {
-          console.log(
-            "Position: " +
-              res[i].position +
-              " || Song: " +
-              res[i].song +
-              " || Artist: " +
-              res[i].artist +
-              " || Year: " +
-              res[i].year
-          );
-        }
-        runSearch();
-      });
-    });
-}
-
-function songSearch() {
-  inquirer
-    .prompt({
-      name: "song",
-      type: "input",
-      message: "What song would you like to look for?",
-    })
-    .then(function (answer) {
-      console.log(answer.song);
-      connection.query(
-        "SELECT * FROM top5000 WHERE ?",
-        { song: answer.song },
-        function (err, res) {
-          console.log(
-            "Position: " +
-              res[0].position +
-              " || Song: " +
-              res[0].song +
-              " || Artist: " +
-              res[0].artist +
-              " || Year: " +
-              res[0].year
-          );
-          runSearch();
-        }
-      );
-    });
-}
-
-function songAndAlbumSearch() {
-  inquirer
-    .prompt({
-      name: "artist",
-      type: "input",
-      message: "What artist would you like to search for?",
-    })
-    .then(function (answer) {
-      var query =
-        "SELECT top_albums.year, top_albums.album, top_albums.position, top5000.song, top5000.artist ";
-      query +=
-        "FROM top_albums INNER JOIN top5000 ON (top_albums.artist = top5000.artist AND top_albums.year ";
-      query +=
-        "= top5000.year) WHERE (top_albums.artist = ? AND top5000.artist = ?) ORDER BY top_albums.year, top_albums.position";
-
-      connection.query(query, [answer.artist, answer.artist], function (
-        err,
-        res
-      ) {
-        console.log(res.length + " matches found!");
-        for (var i = 0; i < res.length; i++) {
-          console.log(
-            i +
-              1 +
-              ".) " +
-              "Year: " +
-              res[i].year +
-              " Album Position: " +
-              res[i].position +
-              " || Artist: " +
-              res[i].artist +
-              " || Song: " +
-              res[i].song +
-              " || Album: " +
-              res[i].album
-          );
-        }
-
-        runSearch();
-      });
-    });
 }
