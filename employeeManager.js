@@ -91,7 +91,6 @@ function runSearch() {
 //viewing
 function reportViewer(report) {
   var sqlString = "";
-  console.log("reportViewer: " + report);
   switch (report) {
     case "Employees":
       sqlString = `select * from employee_tbl order by employee_id`;
@@ -131,7 +130,7 @@ function reportViewer(report) {
 
 //modifying
 function modifyEntry(table) {
-  console.log("modifyEntry: " + table);
+  // console.log("modifyEntry: " + table);
   console.log("function not implemented: " + table);
   listEmployees();
 }
@@ -151,11 +150,10 @@ function removeEntry(table) {
       listEmployees();
       break;
   }
-  console.log("removeEntry: " + table);
+  // console.log("removeEntry: " + table);
 }
 
 function removeEmployee() {
-  // listRolesWithoutDependencies();
   inquirer
     .prompt({
       name: "delete",
@@ -263,8 +261,8 @@ function listRoles() {
 
 //Additions
 function addEntry(table) {
-  console.log("addEntry: " + table);
-  console.log("reportViewer: " + table);
+  // console.log("addEntry: " + table);
+  // console.log("reportViewer: " + table);
   switch (table) {
     case "Employees":
       addNewEmployee();
@@ -395,12 +393,11 @@ function getManagerArray() {
     (select a.employee_id as ID, concat(a.first_name, " ", a.last_name) as Name, count(b.employee_id) as Emp_ID_Count 
     from employee_tbl as a
     left join employee_tbl as b on a.employee_id = b.manager_id
-    group by ID) as c where c.Emp_ID_Count > 0;`,
+    group by ID) as c where c.Emp_ID_Count >= 0;`,
     (err, data) => {
       if (err) throw err;
       for (var i = 0; i < data.length; i++) {
         managers.push(data[i].managers);
-        // console.log(data[i].roles);
       }
     }
   );
