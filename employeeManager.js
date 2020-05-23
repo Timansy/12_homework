@@ -138,12 +138,14 @@ function modifyEntry(table) {
     case "Employees":
       updateEmployee();
       break;
-    case "Roles":
-      updateRole();
+    case "Roles- NOT IMPLEMENTED":
+      listEmployees()  
+    // updateRole();
       break;
-    case "Departments":
-      // console.log("function not implemented: " + table);
-      updateDepartment();
+    case "Departments- NOT IMPLEMENTED":
+      listEmployees()  
+    // console.log("function not implemented: " + table);
+      // updateDepartment();
       break;
   }
   // console.log("modifyEntry: " + table);
@@ -210,7 +212,7 @@ function updateEmployee() {
                     role_id = ${parseInt(updateAnswers.role)},
                     role_id = ${parseInt(updateAnswers.manager)} 
                   where employee_id = ${id};`;
-        connection.query(querystr, (err, data) => {
+        connection.query(querystr, (err) => {
           if (err) throw err;
           listEmployees();
         });
