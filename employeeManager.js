@@ -31,7 +31,7 @@ function runSearch() {
       name: "action",
       type: "list",
       message: "What would you like to do?",
-      choices: ["Add", "Modify - Not Implemented", "Delete", "View"],
+      choices: ["Add", "Modify", "Delete", "View"],
     })
     .then(function (answer) {
       if (answer.action === "View") {
@@ -67,8 +67,12 @@ function runSearch() {
           .prompt({
             name: "modify",
             type: "list",
-            message: "Which table would you like to modify? NOT IMPLEMENTED",
-            choices: ["Employees", "Roles", "Departments"],
+            message: "Which table would you like to modify?",
+            choices: [
+              "Employees",
+              "Roles- NOT IMPLEMENTED",
+              "Departments- NOT IMPLEMENTED",
+            ],
           })
           .then(function (viewAnswers) {
             modifyEntry(viewAnswers.modify);
@@ -130,9 +134,88 @@ function reportViewer(report) {
 
 //modifying
 function modifyEntry(table) {
+  switch (table) {
+    case "Employees":
+      updateEmployee();
+      break;
+    case "Roles":
+      updateRole();
+      break;
+    case "Departments":
+      // console.log("function not implemented: " + table);
+      updateDepartment();
+      break;
+  }
   // console.log("modifyEntry: " + table);
-  console.log("function not implemented: " + table);
-  listEmployees();
+  // console.log("function not implemented: " + table);
+  // listEmployees();
+}
+
+function updateEmployee() {
+  sqlString = `select * from employee_tbl order by employee_id`;
+  connection.query(sqlString, (err, data) => {
+    if (err) throw err;
+    console.table(data);
+    inquirer
+      .prompt({
+        name: "emp",
+        type: "input",
+        message: "Enter the id of the employee to modify",
+      })
+      .then(function (viewAnswers) {
+        connection.query(
+          `select * from employee_tbl where employee_id = ${parseInt(
+            viewAnswers.emp
+          )}`,
+          (err, data) => {
+            if (err) throw err;
+            getUpdate(data, parseInt(viewAnswers.emp));
+          }
+        );
+      });
+  });
+  function getUpdate(data, id) {
+    inquirer
+      .prompt([
+        {
+          name: "first",
+          type: "input",
+          message: "First name?",
+          default: data[0].first_name,
+        },
+        {
+          name: "last",
+          type: "input",
+          message: "Last name?",
+          default: data[0].last_name,
+        },
+        {
+          name: "role",
+          type: "input",
+          message: "Role ID?",
+          default: data[0].role_id,
+        },
+        {
+          name: "manager",
+          type: "input",
+          message: "Manager ID?",
+          default: data[0].manager_id,
+        }
+      ])
+      .then((updateAnswers) => {
+        var querystr = `
+                  update employee_tbl
+                  set first_name = \"${updateAnswers.first}\", 
+                    last_name = \"${updateAnswers.last}\", 
+                    role_id = ${parseInt(updateAnswers.role)},
+                    role_id = ${parseInt(updateAnswers.manager)} 
+                  where employee_id = ${id};`;
+        connection.query(querystr, (err, data) => {
+          if (err) throw err;
+          listEmployees();
+        });
+      });
+  }
 }
 
 //removing
@@ -419,7 +502,6 @@ function getNonManagerArray() {
     }
   );
 }
-
 
 function getRoleArray() {
   roles = [];
